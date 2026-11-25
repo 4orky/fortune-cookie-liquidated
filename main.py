@@ -157,6 +157,29 @@ def validate(text):
     return len(words)
 
 
+def verify_output(path, expected):
+    """Second-pass check: read the written file back and prove it is the
+    chosen fortune, byte for byte — exactly one line, at most 20 words,
+    identical to `expected`. Returns (words, chars) on success; raises
+    ValueError (non-zero exit in main) on any mismatch."""
+    with open(path, "rb") as f:
+        raw = f.read()
+    expected_bytes = (expected + "\n").encode("utf-8")
+    if raw != expected_bytes:
+        raise ValueError(
+            f"written output does not match the chosen fortune byte for byte: "
+            f"wrote {raw!r}, expected {expected_bytes!r}"
+        )
+    text = raw.decode("utf-8")
+    lines = text.splitlines()
+    if len(lines) != 1:
+        raise ValueError(f"written output has {len(lines)} lines, expected exactly 1")
+    words = lines[0].split()
+    if len(words) > MAX_WORDS:
+        raise ValueError(f"written output has {len(words)} words, over {MAX_WORDS}")
+    return len(words), len(lines[0])
+
+
 def main():
     score_table()
     winner = pick_winner()
@@ -169,6 +192,15 @@ def main():
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         f.write(fortune + "\n")
     print(f"wrote {OUTPUT_PATH}")
+    try:
+        v_words, v_chars = verify_output(OUTPUT_PATH, fortune)
+    except ValueError as e:
+        print(f"verification FAILED: {e}", file=sys.stderr)
+        return 1
+    print(
+        f"verification OK: {OUTPUT_PATH} holds exactly 1 line, "
+        f"{v_words} words, {v_chars} chars, byte-identical to the chosen fortune"
+    )
     return 0
 
 
